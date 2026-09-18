@@ -50,6 +50,9 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm install
 
+      - name: Generate application icons
+        run: npx tauri icon src-tauri/app-icon.svg
+
       - name: Build installers
         run: npm run tauri:build -- ${{ matrix.args }}
 
