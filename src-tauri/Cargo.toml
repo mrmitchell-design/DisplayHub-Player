@@ -1,6 +1,6 @@
 [package]
 name = "displayhub-player"
-version = "0.1.0"
+version = "0.3.1"
 description = "DisplayHub Player for Windows and Linux"
 authors = ["DisplayHub"]
 edition = "2021"
