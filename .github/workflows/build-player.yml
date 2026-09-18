@@ -48,7 +48,7 @@ jobs:
           workspaces: "./src-tauri -> target"
 
       - name: Install JavaScript dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build installers
         run: npm run tauri:build -- ${{ matrix.args }}
