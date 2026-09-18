@@ -1,22 +1,24 @@
-import { useMemo, useState } from "react";
-import { MonitorUp, Wifi, Settings, CheckCircle2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { MonitorUp, Wifi, Settings, CheckCircle2, RefreshCw } from "lucide-react";
 
 type Stage="setup"|"pairing"|"ready";
-
-function makeCode(){const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join("");}
+type PairRequest={code:string;requestToken:string;expiresIn:number};
+type PairedScreen={id:number;name:string};
+const SERVER_KEY="displayhub_server_url";
+const TOKEN_KEY="displayhub_device_token";
+const SCREEN_KEY="displayhub_screen";
 
 export default function App(){
  const [stage,setStage]=useState<Stage>("setup");
- const [serverUrl,setServerUrl]=useState("http://localhost:8092");
- const code=useMemo(makeCode,[]);
- const grouped=code.slice(0,3)+" "+code.slice(3);
- return <main className="shell">
-   <header className="topbar"><div className="brand"><span className="mark"><span/></span><strong>DisplayHub</strong><em>Player</em></div><div className="status"><Wifi size={16}/> Player 0.1.0</div></header>
-   <section className="content">
-    {stage==="setup"&&<div className="card setup"><div className="heroIcon"><MonitorUp/></div><p className="eyebrow">Welcome to DisplayHub Player</p><h1>Turn this screen into a DisplayHub display.</h1><p className="lead">Connect this player to your DisplayHub server. Once paired, signage and screen sharing will start automatically.</p><label>DisplayHub server<input value={serverUrl} onChange={e=>setServerUrl(e.target.value)} placeholder="https://displayhub.example.com"/></label><button onClick={()=>setStage("pairing")} disabled={!serverUrl.trim()}>Connect to DisplayHub</button><small>You only need to do this once on each player.</small></div>}
-    {stage==="pairing"&&<div className="card pairing"><p className="eyebrow">Pair this display</p><h1>Enter this code in DisplayHub</h1><div className="code">{grouped}</div><p className="lead">In your DisplayHub admin page, open <strong>Screens → Add Player</strong> and enter the code above.</p><div className="waiting"><span className="pulse"/><span>Waiting for pairing…</span></div><button className="secondary" onClick={()=>setStage("ready")}>Preview paired state</button><small>Prototype: server pairing will replace this preview button in the next step.</small></div>}
-    {stage==="ready"&&<div className="card ready"><CheckCircle2 className="success"/><p className="eyebrow">Display connected</p><h1>DT Classroom</h1><div className="readyGrid"><div><span>DisplayHub</span><strong>Connected</strong></div><div><span>AirPlay</span><strong>Coming next</strong></div></div><p className="lead">This player is ready to load its assigned DisplayHub content.</p><button onClick={()=>setStage("pairing")}>Back to pairing</button></div>}
-   </section>
-   <footer><span>DisplayHub Player</span><span><Settings size={14}/> Device setup</span></footer>
- </main>
+ const [serverUrl,setServerUrl]=useState(()=>localStorage.getItem(SERVER_KEY)||"http://localhost:8092");
+ const [pair,setPair]=useState<PairRequest|null>(null);const[screen,setScreen]=useState<PairedScreen|null>(null);const[error,setError]=useState("");const[busy,setBusy]=useState(false);
+ useEffect(()=>{const token=localStorage.getItem(TOKEN_KEY),saved=localStorage.getItem(SCREEN_KEY);if(token&&saved){try{setScreen(JSON.parse(saved));setStage("ready")}catch{}}},[]);
+ async function beginPairing(){setBusy(true);setError("");try{const base=serverUrl.trim().replace(/\/$/,"");const r=await fetch(base+"/api/player/register",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({deviceName:"DisplayHub Player",platform:navigator.platform||"desktop"})});const d=await r.json();if(!r.ok)throw new Error(d.error||"DisplayHub did not accept the pairing request.");localStorage.setItem(SERVER_KEY,base);setServerUrl(base);setPair(d);setStage("pairing")}catch(e){setError(e instanceof Error?e.message:"Unable to reach DisplayHub. Check the server address and network.")}finally{setBusy(false)}}
+ useEffect(()=>{if(stage!=="pairing"||!pair)return;let stopped=false;const check=async()=>{try{const r=await fetch(serverUrl+"/api/player/register/status",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({requestToken:pair.requestToken})});const d=await r.json();if(stopped)return;if(d.status==="paired"){localStorage.setItem(TOKEN_KEY,d.token);localStorage.setItem(SCREEN_KEY,JSON.stringify(d.screen));setScreen(d.screen);setStage("ready")}else if(d.status==="expired"){setError("This pairing code expired. Request a new one.");setPair(null)}}catch{}};void check();const timer=window.setInterval(check,2000);return()=>{stopped=true;window.clearInterval(timer)}},[stage,pair,serverUrl]);
+ const grouped=pair?pair.code.slice(0,3)+" "+pair.code.slice(3):"";
+ return <main className="shell"><header className="topbar"><div className="brand"><span className="mark"><span/></span><strong>DisplayHub</strong><em>Player</em></div><div className="status"><Wifi size={16}/> Player 0.2.0</div></header><section className="content">
+ {stage==="setup"&&<div className="card setup"><div className="heroIcon"><MonitorUp/></div><p className="eyebrow">Welcome to DisplayHub Player</p><h1>Turn this screen into a DisplayHub display.</h1><p className="lead">Connect this player to your DisplayHub server. It will create a code you can claim from your DisplayHub admin page.</p><label>DisplayHub server<input value={serverUrl} onChange={e=>setServerUrl(e.target.value)} placeholder="https://displayhub.example.com"/></label>{error&&<div className="appError">{error}</div>}<button onClick={beginPairing} disabled={busy||!serverUrl.trim()}>{busy?"Connecting…":"Connect to DisplayHub"}</button><small>You only need to do this once on each player.</small></div>}
+ {stage==="pairing"&&<div className="card pairing"><p className="eyebrow">Pair this display</p><h1>Enter this code in DisplayHub</h1><div className="code">{grouped}</div><p className="lead">In your DisplayHub admin page, open <strong>Screens → Pair Player</strong> and enter the code above.</p>{error?<div className="appError">{error}</div>:<div className="waiting"><span className="pulse"/><span>Waiting for your DisplayHub administrator…</span></div>}<button className="secondary" onClick={beginPairing}><RefreshCw size={16}/> New pairing code</button><small>Pairing codes expire after 15 minutes.</small></div>}
+ {stage==="ready"&&<div className="card ready"><CheckCircle2 className="success"/><p className="eyebrow">Display connected</p><h1>{screen?.name||"DisplayHub Player"}</h1><div className="readyGrid"><div><span>DisplayHub</span><strong>Connected</strong></div><div><span>AirPlay</span><strong>Coming next</strong></div></div><p className="lead">This player is securely paired. Signage playback is the next connection step.</p><button className="secondary" onClick={()=>{localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(SCREEN_KEY);setPair(null);setScreen(null);setStage("setup")}}>Unpair this test player</button></div>}
+ </section><footer><span>DisplayHub Player</span><span><Settings size={14}/> Device setup</span></footer></main>
 }
