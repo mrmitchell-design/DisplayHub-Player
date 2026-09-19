@@ -1,4 +1,5 @@
 use serde_json::Value;
+use tauri::{AppHandle, Manager};
 
 #[tauri::command]
 async fn http_request(url:String,method:Option<String>,body:Option<Value>,token:Option<String>)->Result<Value,String>{
@@ -12,5 +13,13 @@ async fn http_request(url:String,method:Option<String>,body:Option<Value>,token:
  if !status.is_success(){return Err(data.get("error").and_then(|v|v.as_str()).unwrap_or("DisplayHub returned an error").to_string())}Ok(data)
 }
 
+#[tauri::command]
+fn set_kiosk(app:AppHandle,enabled:bool)->Result<(),String>{
+ let window=app.get_webview_window("main").ok_or("Player window not found")?;
+ window.set_fullscreen(enabled).map_err(|e|e.to_string())?;
+ window.set_decorations(!enabled).map_err(|e|e.to_string())?;
+ Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run(){tauri::Builder::default().plugin(tauri_plugin_autostart::Builder::new().app_name("DisplayHub Player").build()).setup(|app|{use tauri_plugin_autostart::ManagerExt;let _=app.autolaunch().enable();Ok(())}).invoke_handler(tauri::generate_handler![http_request]).run(tauri::generate_context!()).expect("error while running DisplayHub Player");}
+pub fn run(){tauri::Builder::default().plugin(tauri_plugin_autostart::Builder::new().app_name("DisplayHub Player").build()).setup(|app|{use tauri_plugin_autostart::ManagerExt;let _=app.autolaunch().enable();Ok(())}).invoke_handler(tauri::generate_handler![http_request,set_kiosk]).run(tauri::generate_context!()).expect("error while running DisplayHub Player");}
