@@ -1,5 +1,4 @@
 use serde_json::Value;
-use tauri_plugin_autostart::MacosLauncher;
 
 #[tauri::command]
 async fn http_request(url:String,method:Option<String>,body:Option<Value>,token:Option<String>)->Result<Value,String>{
@@ -14,4 +13,4 @@ async fn http_request(url:String,method:Option<String>,body:Option<Value>,token:
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run(){tauri::Builder::default().plugin(tauri_plugin_autostart::Builder::new().app_name("DisplayHub Player").macos_launcher(MacosLauncher::LaunchAgent).build()).setup(|app|{use tauri_plugin_autostart::ManagerExt;let _=app.autolaunch().enable();Ok(())}).invoke_handler(tauri::generate_handler![http_request]).run(tauri::generate_context!()).expect("error while running DisplayHub Player");}
+pub fn run(){tauri::Builder::default().plugin(tauri_plugin_autostart::Builder::new().app_name("DisplayHub Player").build()).setup(|app|{use tauri_plugin_autostart::ManagerExt;let _=app.autolaunch().enable();Ok(())}).invoke_handler(tauri::generate_handler![http_request]).run(tauri::generate_context!()).expect("error while running DisplayHub Player");}
