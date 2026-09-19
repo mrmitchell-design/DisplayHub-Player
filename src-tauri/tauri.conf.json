@@ -1,1 +1,35 @@
-{"$schema":"https://schema.tauri.app/config/2","productName":"DisplayHub Player","version":"0.3.1","identifier":"net.mitchell-group.displayhub.player","build":{"beforeDevCommand":"npm run dev","devUrl":"http://localhost:1420","beforeBuildCommand":"npm run build","frontendDist":"../dist"},"app":{"windows":[{"title":"DisplayHub Player","width":1280,"height":720,"minWidth":800,"minHeight":500,"fullscreen":false,"resizable":true,"decorations":true}],"security":{"csp":null}},"bundle":{"active":true,"targets":"all","shortDescription":"DisplayHub digital signage and presentation receiver","longDescription":"Dedicated DisplayHub player for managed signage screens and local presentation receiving.","linux":{"deb":{"depends":["libwebkit2gtk-4.1-0","libgtk-3-0"]}}}}
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "DisplayHub Player",
+  "version": "0.3.1",
+  "identifier": "net.mitchell-group.displayhub.player",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "DisplayHub Player",
+        "width": 1280,
+        "height": 720,
+        "minWidth": 800,
+        "minHeight": 500,
+        "fullscreen": false,
+        "resizable": true,
+        "decorations": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "shortDescription": "DisplayHub digital signage and presentation receiver",
+    "longDescription": "Dedicated DisplayHub player for managed signage screens and local presentation receiving."
+  }
+}
