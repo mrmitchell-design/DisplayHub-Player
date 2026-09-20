@@ -8,3 +8,19 @@
 
 /* Hard cap layout-zone typography for WebKitGTK/QEMU; avoids viewport/container unit overflow. */
 .native-layout .native-zone .native-text{max-width:none!important;padding:10px 14px!important;overflow:hidden!important}.native-layout .native-zone .native-text small{font-size:10px!important;line-height:1.1!important;margin:0 0 4px!important}.native-layout .native-zone .native-text h1{font-size:24px!important;line-height:1.05!important;margin:3px 0!important;max-width:100%!important}.native-layout .native-zone .native-text p{font-size:13px!important;line-height:1.2!important;margin:2px 0!important;max-width:100%!important}.native-layout .native-zone .native-clock,.native-layout .native-zone .native-widget{padding:10px 14px!important;overflow:hidden!important}.native-layout .native-zone .native-clock small,.native-layout .native-zone .native-widget small{font-size:10px!important;line-height:1.1!important;margin-bottom:5px!important}.native-layout .native-zone .native-clock strong,.native-layout .native-zone .native-widget strong{font-size:28px!important;line-height:1!important;max-width:100%!important}.native-layout .native-zone .native-widget p{font-size:13px!important;line-height:1.2!important}
+
+/* Native layout parity: mirror the browser player's framed school-screen treatment. */
+.native-layout{background:#eef1f6!important;color:#fff}
+.native-layout-header{position:absolute;inset:0 0 auto 0;height:7%;padding:0 2%;display:flex;align-items:center;justify-content:space-between;background:#344bd7;color:#fff;font-size:clamp(16px,2vw,32px);font-weight:800;z-index:100}
+.native-layout-header time{font-size:inherit}
+.native-layout-canvas{position:absolute;left:0;right:0;overflow:hidden;background:#eef1f6}
+.native-layout-footer{position:absolute;inset:auto 0 0 0;height:5%;padding:0 2%;display:flex;align-items:center;justify-content:space-between;background:#344bd7;color:#fff;z-index:100}
+.native-layout .native-zone{box-sizing:border-box;display:block}
+.native-layout .native-zone>*{border-radius:14px;overflow:hidden}
+.native-layout .native-zone .native-media{background:#11172a}
+.native-layout .native-zone .native-widget,.native-layout .native-zone .native-clock,.native-layout .native-zone .native-text{background:#344bd7;color:#fff}
+.native-layout .native-zone .native-widget,.native-layout .native-zone .native-clock{padding:18px 22px!important}
+.native-layout .native-zone .native-widget small,.native-layout .native-zone .native-clock small{font-size:12px!important;letter-spacing:.1em!important}
+.native-layout .native-zone .native-widget strong,.native-layout .native-zone .native-clock strong{font-size:clamp(24px,2.3vw,42px)!important}
+.native-layout .native-zone .native-widget p{font-size:clamp(13px,1.15vw,20px)!important;padding:9px 0;margin:0!important;border-top:1px solid rgba(255,255,255,.18)}
+.native-layout .native-zone .native-feed{justify-content:flex-start}
