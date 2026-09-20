@@ -63,7 +63,7 @@ fn watch_output<R:std::io::Read+Send+'static>(reader:R,pin:Arc<Mutex<Option<Stri
 #[cfg(target_os="windows")]
 fn windows_airplay_exe()->Option<std::path::PathBuf>{
  if let Ok(p)=std::env::var("DISPLAYHUB_UXPLAY"){let p=std::path::PathBuf::from(p);if p.exists(){return Some(p)}}
- if let Ok(exe)=std::env::current_exe(){if let Some(dir)=exe.parent(){for p in [dir.join("airplay/bin/uxplay.exe"),dir.join("resources/airplay/bin/uxplay.exe"),dir.join("../Resources/airplay/bin/uxplay.exe")]{if p.exists(){return Some(p)}}}}
+ if let Ok(exe)=std::env::current_exe(){if let Some(dir)=exe.parent(){for p in [dir.join("airplay/bin/uxplay.exe"),dir.join("resources/airplay/bin/uxplay.exe"),dir.join("../Resources/airplay/bin/uxplay.exe")]{if p.exists(){return Some(p)}}}}\n if let Ok(local)=std::env::var("LOCALAPPDATA"){let p=std::path::PathBuf::from(local).join("DisplayHub Player/airplay/bin/uxplay.exe");if p.exists(){return Some(p)}}
  ["C:\\Program Files\\DisplayHub Player\\airplay\\bin\\uxplay.exe","C:\\Program Files\\DisplayHub Player\\resources\\airplay\\bin\\uxplay.exe","C:\\msys64\\ucrt64\\bin\\uxplay.exe"].iter().map(std::path::PathBuf::from).find(|p|p.exists())
 }
 
