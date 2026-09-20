@@ -30,6 +30,9 @@
     "active": true,
     "targets": "all",
     "shortDescription": "DisplayHub digital signage and presentation receiver",
-    "longDescription": "Dedicated DisplayHub player for managed signage screens and local presentation receiving."
+    "longDescription": "Dedicated DisplayHub player for managed signage screens and local presentation receiving.",
+    "resources": {
+      "resources/airplay/": "airplay/"
+    }
   }
 }
