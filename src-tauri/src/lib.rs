@@ -1,5 +1,9 @@
 use serde_json::Value;
-use tauri::{AppHandle, Manager};
+use std::process::{Child,Command,Stdio};
+use std::sync::Mutex;
+use tauri::{AppHandle,Manager,State};
+
+struct AirplayState(Mutex<Option<Child>>);
 
 #[tauri::command]
 async fn http_request(url:String,method:Option<String>,body:Option<Value>,token:Option<String>)->Result<Value,String>{
@@ -21,5 +25,26 @@ fn set_kiosk(app:AppHandle,enabled:bool)->Result<(),String>{
  Ok(())
 }
 
+#[tauri::command]
+fn airplay_start(name:String,state:State<AirplayState>)->Result<Value,String>{
+ let mut guard=state.0.lock().map_err(|_|"AirPlay state unavailable")?;
+ if let Some(child)=guard.as_mut(){if child.try_wait().map_err(|e|e.to_string())?.is_none(){return Ok(serde_json::json!({"running":true,"name":name}));}}
+ let receiver=format!("DisplayHub – {}",name.trim());
+ let child=Command::new("uxplay").args(["-n",&receiver]).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|e|format!("UxPlay is not available: {e}"))?;
+ *guard=Some(child);
+ Ok(serde_json::json!({"running":true,"name":receiver}))
+}
+
+#[tauri::command]
+fn airplay_status(state:State<AirplayState>)->Result<Value,String>{
+ let mut guard=state.0.lock().map_err(|_|"AirPlay state unavailable")?;
+ let running=match guard.as_mut(){Some(child)=>child.try_wait().map_err(|e|e.to_string())?.is_none(),None=>false};
+ if !running{*guard=None;}
+ Ok(serde_json::json!({"available":Command::new("uxplay").arg("-h").stdout(Stdio::null()).stderr(Stdio::null()).status().is_ok(),"running":running}))
+}
+
+#[tauri::command]
+fn airplay_stop(state:State<AirplayState>)->Result<(),String>{let mut guard=state.0.lock().map_err(|_|"AirPlay state unavailable")?;if let Some(mut child)=guard.take(){let _=child.kill();let _=child.wait();}Ok(())}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run(){tauri::Builder::default().plugin(tauri_plugin_autostart::Builder::new().app_name("DisplayHub Player").build()).setup(|app|{use tauri_plugin_autostart::ManagerExt;let _=app.autolaunch().enable();Ok(())}).invoke_handler(tauri::generate_handler![http_request,set_kiosk]).run(tauri::generate_context!()).expect("error while running DisplayHub Player");}
+pub fn run(){tauri::Builder::default().manage(AirplayState(Mutex::new(None))).plugin(tauri_plugin_autostart::Builder::new().app_name("DisplayHub Player").build()).setup(|app|{use tauri_plugin_autostart::ManagerExt;let _=app.autolaunch().enable();Ok(())}).invoke_handler(tauri::generate_handler![http_request,set_kiosk,airplay_start,airplay_status,airplay_stop]).run(tauri::generate_context!()).expect("error while running DisplayHub Player");}
