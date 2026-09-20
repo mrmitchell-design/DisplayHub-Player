@@ -64,7 +64,7 @@ fn watch_output<R:std::io::Read+Send+'static>(reader:R,pin:Arc<Mutex<Option<Stri
 fn airplay_start(name:String,dynamic_code:Option<bool>,state:State<AirplayState>)->Result<Value,String>{
  let mut guard=state.0.lock().map_err(|_|"AirPlay state unavailable")?;
  if let Some(process)=guard.as_mut(){if process.child.try_wait().map_err(|e|e.to_string())?.is_none(){return Ok(serde_json::json!({"running":true,"name":name}));}}
- let receiver=format!("DisplayHub – {}",name.trim());let mut command=Command::new("uxplay");command.args(["-n",&receiver]);if dynamic_code.unwrap_or(true){command.arg("-pw");}
+ let receiver=format!("DisplayHub – {}",name.trim());let mut command=Command::new("stdbuf");command.args(["-oL","-eL","uxplay","-n",&receiver]);if dynamic_code.unwrap_or(true){command.arg("-pw");}
  let mut child=command.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e|format!("UxPlay is not available: {e}"))?;
  let pin=Arc::new(Mutex::new(None));let active=Arc::new(Mutex::new(false));
  if let Some(stdout)=child.stdout.take(){watch_output(stdout,pin.clone(),active.clone())}if let Some(stderr)=child.stderr.take(){watch_output(stderr,pin.clone(),active.clone())}
