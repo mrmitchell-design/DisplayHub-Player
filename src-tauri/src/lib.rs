@@ -60,13 +60,20 @@ fn watch_output<R:std::io::Read+Send+'static>(reader:R,pin:Arc<Mutex<Option<Stri
  thread::spawn(move||{let mut recent:Vec<String>=Vec::new();for line in BufReader::new(reader).lines().map_while(Result::ok){if let Ok(mut log)=std::fs::OpenOptions::new().create(true).append(true).open("/tmp/displayhub-uxplay.log"){let _=writeln!(log,"{}",line);}let lower=line.to_lowercase();if lower.contains("client disconnected"){if let Ok(mut a)=active.lock(){*a=false}if let Ok(mut p)=pin.lock(){*p=None}}if lower.contains("connection")||lower.contains("mirroring")||lower.contains("streaming"){if !lower.contains("disconnected"){if let Ok(mut a)=active.lock(){*a=true}}}recent.push(line);if recent.len()>12{recent.remove(0);}if let Some(code)=decode_pin(&recent){if let Ok(mut p)=pin.lock(){*p=Some(code)}}}}); 
 }
 
+#[cfg(target_os="windows")]
+fn windows_airplay_exe()->Option<std::path::PathBuf>{
+ if let Ok(p)=std::env::var("DISPLAYHUB_UXPLAY"){let p=std::path::PathBuf::from(p);if p.exists(){return Some(p)}}
+ if let Ok(exe)=std::env::current_exe(){if let Some(dir)=exe.parent(){for p in [dir.join("airplay/bin/uxplay.exe"),dir.join("../Resources/airplay/bin/uxplay.exe")]{if p.exists(){return Some(p)}}}}
+ ["C:\\Program Files\\DisplayHub Player\\airplay\\bin\\uxplay.exe","C:\\msys64\\ucrt64\\bin\\uxplay.exe"].iter().map(std::path::PathBuf::from).find(|p|p.exists())
+}
+
 #[tauri::command]
 fn airplay_start(name:String,dynamic_code:Option<bool>,state:State<AirplayState>)->Result<Value,String>{
  let mut guard=state.0.lock().map_err(|_|"AirPlay state unavailable")?;
  if let Some(process)=guard.as_mut(){if process.child.try_wait().map_err(|e|e.to_string())?.is_none(){return Ok(serde_json::json!({"running":true,"name":name}));}}
  let receiver=format!("DisplayHub – {}",name.trim());
  #[cfg(target_os="windows")]
- let mut command={let candidates=[std::env::var("DISPLAYHUB_UXPLAY").ok(),Some("C:\\Program Files\\DisplayHub Player\\airplay\\uxplay.exe".into()),Some("C:\\ProgramData\\DisplayHub Player\\airplay\\uxplay.exe".into()),Some("C:\\msys64\\ucrt64\\bin\\uxplay.exe".into())];let exe=candidates.into_iter().flatten().find(|p|std::path::Path::new(p).exists()).unwrap_or_else(||"uxplay.exe".into());let mut cmd=Command::new(exe);cmd.args(["-n",&receiver]);cmd};
+ let mut command={let exe=windows_airplay_exe().ok_or("Bundled Windows AirPlay runtime is missing")?;let bin=exe.parent().ok_or("AirPlay runtime path is invalid")?;let root=bin.parent().unwrap_or(bin);let plugins=root.join("lib/gstreamer-1.0");let mut cmd=Command::new(&exe);cmd.env("PATH",format!("{};{}",bin.display(),std::env::var("PATH").unwrap_or_default())).env("GST_PLUGIN_PATH",plugins).args(["-n",&receiver]);cmd};
  #[cfg(not(target_os="windows"))]
  let mut command={let mut cmd=Command::new("stdbuf");cmd.args(["-oL","-eL","uxplay","-n",&receiver]);cmd};
  if dynamic_code.unwrap_or(true){command.arg("-pw");}
@@ -82,7 +89,7 @@ fn airplay_status(state:State<AirplayState>)->Result<Value,String>{
  if let Some(process)=guard.as_mut(){running=process.child.try_wait().map_err(|e|e.to_string())?.is_none();if running{pin=process.pin.lock().ok().and_then(|p|p.clone());active=process.active.lock().map(|a|*a).unwrap_or(false)}}
  if !running{*guard=None;}
  #[cfg(target_os="windows")]
- let available=["C:\\Program Files\\DisplayHub Player\\airplay\\uxplay.exe","C:\\ProgramData\\DisplayHub Player\\airplay\\uxplay.exe","C:\\msys64\\ucrt64\\bin\\uxplay.exe"].iter().any(|p|std::path::Path::new(p).exists())||Command::new("uxplay.exe").arg("-h").stdout(Stdio::null()).stderr(Stdio::null()).status().is_ok();
+ let available=windows_airplay_exe().is_some();
  #[cfg(not(target_os="windows"))]
  let available=Command::new("uxplay").arg("-h").stdout(Stdio::null()).stderr(Stdio::null()).status().is_ok();
  Ok(serde_json::json!({"available":available,"running":running,"pin":pin,"active":active}))
