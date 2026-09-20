@@ -26,11 +26,11 @@ fn set_kiosk(app:AppHandle,enabled:bool)->Result<(),String>{
 }
 
 #[tauri::command]
-fn airplay_start(name:String,state:State<AirplayState>)->Result<Value,String>{
+fn airplay_start(name:String,pin:Option<String>,state:State<AirplayState>)->Result<Value,String>{
  let mut guard=state.0.lock().map_err(|_|"AirPlay state unavailable")?;
  if let Some(child)=guard.as_mut(){if child.try_wait().map_err(|e|e.to_string())?.is_none(){return Ok(serde_json::json!({"running":true,"name":name}));}}
  let receiver=format!("DisplayHub – {}",name.trim());
- let child=Command::new("uxplay").args(["-n",&receiver]).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|e|format!("UxPlay is not available: {e}"))?;
+ let mut command=Command::new("uxplay");command.args(["-n",&receiver]);if let Some(code)=pin.filter(|p|p.len()==4&&p.chars().all(|c|c.is_ascii_digit())){command.args(["-pin",&code]);}let child=command.stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|e|format!("UxPlay is not available: {e}"))?;
  *guard=Some(child);
  Ok(serde_json::json!({"running":true,"name":receiver}))
 }
