@@ -1,5 +1,5 @@
 use serde_json::Value;
-use std::io::{BufRead,BufReader};
+use std::io::{BufRead,BufReader,Write};
 use std::process::{Child,Command,Stdio};
 use std::sync::{Arc,Mutex};
 use std::thread;
@@ -57,14 +57,14 @@ fn decode_pin(lines:&[String])->Option<String>{
 }
 
 fn watch_output<R:std::io::Read+Send+'static>(reader:R,pin:Arc<Mutex<Option<String>>>,active:Arc<Mutex<bool>>){
- thread::spawn(move||{let mut recent:Vec<String>=Vec::new();for line in BufReader::new(reader).lines().map_while(Result::ok){let lower=line.to_lowercase();if lower.contains("client disconnected"){if let Ok(mut a)=active.lock(){*a=false}if let Ok(mut p)=pin.lock(){*p=None}}if lower.contains("connection")||lower.contains("mirroring")||lower.contains("streaming"){if !lower.contains("disconnected"){if let Ok(mut a)=active.lock(){*a=true}}}recent.push(line);if recent.len()>12{recent.remove(0);}if let Some(code)=decode_pin(&recent){if let Ok(mut p)=pin.lock(){*p=Some(code)}}}}); 
+ thread::spawn(move||{let mut recent:Vec<String>=Vec::new();for line in BufReader::new(reader).lines().map_while(Result::ok){if let Ok(mut log)=std::fs::OpenOptions::new().create(true).append(true).open("/tmp/displayhub-uxplay.log"){let _=writeln!(log,"{}",line);}let lower=line.to_lowercase();if lower.contains("client disconnected"){if let Ok(mut a)=active.lock(){*a=false}if let Ok(mut p)=pin.lock(){*p=None}}if lower.contains("connection")||lower.contains("mirroring")||lower.contains("streaming"){if !lower.contains("disconnected"){if let Ok(mut a)=active.lock(){*a=true}}}recent.push(line);if recent.len()>12{recent.remove(0);}if let Some(code)=decode_pin(&recent){if let Ok(mut p)=pin.lock(){*p=Some(code)}}}}); 
 }
 
 #[tauri::command]
 fn airplay_start(name:String,dynamic_code:Option<bool>,state:State<AirplayState>)->Result<Value,String>{
  let mut guard=state.0.lock().map_err(|_|"AirPlay state unavailable")?;
  if let Some(process)=guard.as_mut(){if process.child.try_wait().map_err(|e|e.to_string())?.is_none(){return Ok(serde_json::json!({"running":true,"name":name}));}}
- let receiver=format!("DisplayHub – {}",name.trim());let mut command=Command::new("uxplay");command.args(["-n",&receiver,"-fs"]);if dynamic_code.unwrap_or(true){command.arg("-pw");}
+ let receiver=format!("DisplayHub – {}",name.trim());let mut command=Command::new("uxplay");command.args(["-n",&receiver]);if dynamic_code.unwrap_or(true){command.arg("-pw");}
  let mut child=command.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e|format!("UxPlay is not available: {e}"))?;
  let pin=Arc::new(Mutex::new(None));let active=Arc::new(Mutex::new(false));
  if let Some(stdout)=child.stdout.take(){watch_output(stdout,pin.clone(),active.clone())}if let Some(stderr)=child.stderr.take(){watch_output(stderr,pin.clone(),active.clone())}
