@@ -64,7 +64,12 @@ fn watch_output<R:std::io::Read+Send+'static>(reader:R,pin:Arc<Mutex<Option<Stri
 fn airplay_start(name:String,dynamic_code:Option<bool>,state:State<AirplayState>)->Result<Value,String>{
  let mut guard=state.0.lock().map_err(|_|"AirPlay state unavailable")?;
  if let Some(process)=guard.as_mut(){if process.child.try_wait().map_err(|e|e.to_string())?.is_none(){return Ok(serde_json::json!({"running":true,"name":name}));}}
- let receiver=format!("DisplayHub – {}",name.trim());let mut command=Command::new("stdbuf");command.args(["-oL","-eL","uxplay","-n",&receiver]);if dynamic_code.unwrap_or(true){command.arg("-pw");}
+ let receiver=format!("DisplayHub – {}",name.trim());
+ #[cfg(target_os="windows")]
+ let mut command={let candidates=[std::env::var("DISPLAYHUB_UXPLAY").ok(),Some("C:\\Program Files\\DisplayHub Player\\airplay\\uxplay.exe".into()),Some("C:\\ProgramData\\DisplayHub Player\\airplay\\uxplay.exe".into()),Some("C:\\msys64\\ucrt64\\bin\\uxplay.exe".into())];let exe=candidates.into_iter().flatten().find(|p|std::path::Path::new(p).exists()).unwrap_or_else(||"uxplay.exe".into());let mut cmd=Command::new(exe);cmd.args(["-n",&receiver]);cmd};
+ #[cfg(not(target_os="windows"))]
+ let mut command={let mut cmd=Command::new("stdbuf");cmd.args(["-oL","-eL","uxplay","-n",&receiver]);cmd};
+ if dynamic_code.unwrap_or(true){command.arg("-pw");}
  let mut child=command.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e|format!("UxPlay is not available: {e}"))?;
  let pin=Arc::new(Mutex::new(None));let active=Arc::new(Mutex::new(false));
  if let Some(stdout)=child.stdout.take(){watch_output(stdout,pin.clone(),active.clone())}if let Some(stderr)=child.stderr.take(){watch_output(stderr,pin.clone(),active.clone())}
@@ -75,7 +80,12 @@ fn airplay_start(name:String,dynamic_code:Option<bool>,state:State<AirplayState>
 fn airplay_status(state:State<AirplayState>)->Result<Value,String>{
  let mut guard=state.0.lock().map_err(|_|"AirPlay state unavailable")?;let mut running=false;let mut pin=None;let mut active=false;
  if let Some(process)=guard.as_mut(){running=process.child.try_wait().map_err(|e|e.to_string())?.is_none();if running{pin=process.pin.lock().ok().and_then(|p|p.clone());active=process.active.lock().map(|a|*a).unwrap_or(false)}}
- if !running{*guard=None;}Ok(serde_json::json!({"available":Command::new("uxplay").arg("-h").stdout(Stdio::null()).stderr(Stdio::null()).status().is_ok(),"running":running,"pin":pin,"active":active}))
+ if !running{*guard=None;}
+ #[cfg(target_os="windows")]
+ let available=["C:\\Program Files\\DisplayHub Player\\airplay\\uxplay.exe","C:\\ProgramData\\DisplayHub Player\\airplay\\uxplay.exe","C:\\msys64\\ucrt64\\bin\\uxplay.exe"].iter().any(|p|std::path::Path::new(p).exists())||Command::new("uxplay.exe").arg("-h").stdout(Stdio::null()).stderr(Stdio::null()).status().is_ok();
+ #[cfg(not(target_os="windows"))]
+ let available=Command::new("uxplay").arg("-h").stdout(Stdio::null()).stderr(Stdio::null()).status().is_ok();
+ Ok(serde_json::json!({"available":available,"running":running,"pin":pin,"active":active}))
 }
 
 #[tauri::command]
